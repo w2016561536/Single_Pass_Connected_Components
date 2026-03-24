@@ -1,0 +1,7 @@
+implPrj/
+*.mti
+*.wlf
+transcript
+tb/CCATEST/ccaTest
+tb/shiftRegTest/shiftRegTest
+tb/stackTest/STACKtEST
