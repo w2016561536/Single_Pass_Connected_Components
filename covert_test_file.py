@@ -2,7 +2,7 @@ import cv2
 import numpy as np
 
 # 读取图片（注意：cv2.imread 默认以 BGR 顺序读取）
-image = cv2.imread('newbmp.bmp')
+image = cv2.imread('received_image_bin_red.bmp')
 
 # 获取图片尺寸
 rows, cols, channels = image.shape
