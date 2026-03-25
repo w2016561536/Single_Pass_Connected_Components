@@ -49,19 +49,18 @@ module test_c(
     reg RSTn;
     reg line_pixel_f[76799:0];
     wire line_pixel_in;
-
-    wire [8:0] hexagon_x;
-    wire [7:0] hexagon_y;
-    wire [8:0] square_x;
-    wire [7:0] square_y;
-    wire [7:0] circle_y;
-    wire [8:0] circle_x;
-    wire stop_o;
     
     wire [16:0] pixel_counter;
 
 initial begin
     $readmemb("C:/Users/w2016/Desktop/test.txt",line_pixel_f);
+end
+
+integer fd ;
+integer ComponentCounts;
+initial begin
+fd = $fopen("output.txt", "w") ; // 打印识别结果
+ComponentCounts = 0;
 end
 
 assign line_pixel_in = line_pixel_f[pixel_counter];
@@ -70,22 +69,15 @@ reg en;
 reg data_ack;
 wire data_req;
 
-// shape_finder_bram_1cycle shape_finder_ins(
-//     .clk(clk),
-//     .rst_n(RSTn),
-//     .en(en),
-//     .data_req(data_req),
-//     .data_ack(data_ack),
-//     .data_in(line_pixel_in),
-//     .analysis_done(stop_o),
-//     .hexagon_x(hexagon_x),
-//     .circle_x(circle_x),
-//     .square_x(square_x),
-//     .hexagon_y(hexagon_y),
-//     .circle_y(circle_y),
-//     .square_y(square_y),
-//     .pixel_address(pixel_counter)
-// );
+wire [11:0] area_out;
+wire [9:0] x_min_out;
+wire [9:0] x_max_out;
+wire [8:0] y_min_out;
+wire [8:0] y_max_out;
+wire [9:0] x_out;
+wire [8:0] y_out;
+wire scan_finish;
+wire out_new;
 
 scaMain #(
     .IMAGE_WIDTH(320),
@@ -99,13 +91,18 @@ scaMain #(
     .data_req(data_req),
     .data_valid(data_ack),
     .pixel_address(pixel_counter),
-    .data_in(line_pixel_in)
+    .data_in(line_pixel_in),
+    .scan_finish(scan_finish),
 
-    // .area_out(area_out),
-    // .x_min_out(x_min_out),
-    // .x_max_out(x_max_out),
-    // .y_min_out(y_min_out),
-    // .y_max_out(y_max_out)
+    .area_out(area_out),
+    .out_new(out_new),
+    .x_out(x_out),
+    .y_out(y_out),
+    .x_min_out(x_min_out),
+    .x_max_out(x_max_out),
+    .y_min_out(y_min_out),
+    .y_max_out(y_max_out)
+   
 );
 
 
@@ -154,6 +151,15 @@ always @(posedge clk or negedge RSTn) begin
             work_state <= 2'b00;
         end
 
+    end
+end
+
+always @(posedge clk) begin
+    if (scan_finish && out_new)
+    begin
+        $fdisplay(fd, "Component %0d: area=%0d, xc=%0d, yc=%0d, xmin=%0d, xmax=%0d, ymin=%0d, ymax=%0d",
+            ComponentCounts , area_out, x_out, y_out, x_min_out, x_max_out, y_min_out, y_max_out);
+            ComponentCounts = ComponentCounts + 1;
     end
 end
     

@@ -16,11 +16,15 @@ module scaMain #(
     output wire [ADDR_WIDTH-1:0] pixel_address,
     input wire data_valid,
 
+    output reg scan_finish,
+    output reg out_new,
     output reg [AERA_BIT_LENGTH-1:0] area_out,
-    output reg [9:0]  x_min_out,
-    // output reg [x_data_length-1:0]  x_max_out,
-    output reg [8:0]  y_min_out
-    // output reg [y_data_length-1:0]  y_max_out
+    output reg [9:0]  x_out,
+    output reg [8:0]  y_out,
+    output reg [9:0] x_min_out,
+    output reg [9:0] x_max_out,
+    output reg [8:0] y_min_out,
+    output reg [8:0] y_max_out
 );
 
 function integer log2(input integer n);
@@ -191,7 +195,8 @@ parameter STATE_WAITING_FOR_DATA_C = 10; // 等待数据表数据返回状态
 parameter STATE_CLEAR_MERGED_DATA = 11; // 清除被合并标签的数据状态
 
 parameter STATE_REACH_LINE_END = 12;
-parameter STATE_IMAGE_FINISH = 13;
+parameter STATE_REACH_LINE_END_WAIT_FOR_RAM = 13;
+parameter STATE_IMAGE_FINISH = 14;
 
 reg [4:0] state;
 always @(posedge clk) begin
@@ -221,6 +226,8 @@ always @(posedge clk) begin
         label_merger_table_wr_en_1 <= 1; // 启用标签合并表写入
         label_merger_table_wr_addr_1 <= 0; // 标签合并表写入地址
         label_merger_table_wr_data_1 <= 0; // 标签合并表写入数据
+        scan_finish <= 0; // 扫描未完成
+        out_new <=0;
     end
     else if (wiping_data)
     begin
@@ -276,6 +283,11 @@ always @(posedge clk) begin
                         // 如果B != 0，则直接认为是B
                         if (shift_reg_out_last_row_mid != 0)
                         begin
+                            if (PIC_B != PIC_C && PIC_C !=0)
+                            begin
+                                $display("error b!=c!!");
+                                $stop;
+                            end
                             shift_register_valid <= 1; // 启用移位寄存器加载
                             shift_register_in <= PIC_B; // 输入标签(查一次表)
                             // 更新数据表中的面积和边界框信息
@@ -333,19 +345,37 @@ always @(posedge clk) begin
                                     state <= STATE_WRITE_DATA_DIRECTLY; // 进入写入数据状态
 
                                 end
+                                else
+                                if (PIC_C == PIC_A && PIC_D == 0)
+                                begin
+                                    // C=A D=0，认为是C
+                                    shift_register_valid <= 1; // 启用移位寄存器加载
+                                    shift_register_in <= PIC_C; // 输入标签(查一次表)
+                                    data_table_inout_label <= PIC_C; // 读取对应的data table
+                                    ram_delay_counter <= 1; // 重置ram延迟
+                                    state <= STATE_WRITE_DATA_DIRECTLY; // 进入写入数据状态
+                                end
+                                else if (PIC_C == PIC_D && PIC_A == 0)
+                                begin
+                                    // C=D A=0，认为是C
+                                    shift_register_valid <= 1; // 启用移位寄存器加载
+                                    shift_register_in <= PIC_C; // 输入标签(查一次表)
+                                    data_table_inout_label <= PIC_C; // 读取对应的data table
+                                    ram_delay_counter <= 1; // 重置ram延迟
+                                    state <= STATE_WRITE_DATA_DIRECTLY; // 进入写入数据状态
+                                end
+                                else if (PIC_C == PIC_A
+                                        && PIC_C == PIC_D)
+                                begin
+                                    // 三个标签相同，说明是同一个区域，不需要合并，直接
+                                    shift_register_valid <= 1; // 启用移位寄存器加载
+                                    shift_register_in <= PIC_C; // 输入标签(查一次表)
+                                    data_table_inout_label <= PIC_C; // 读取对应的data table
+                                    ram_delay_counter <= 1; // 重置ram延迟
+                                    state <= STATE_WRITE_DATA_DIRECTLY; // 进入写入数据状态
+                                end
                                 else // 是merge操作, AD不全为0，C不为0
                                 begin
-                                    if (PIC_C == PIC_A
-                                        && PIC_C == PIC_D)
-                                    begin
-                                        // 三个标签相同，说明是同一个区域，不需要合并，直接
-                                        shift_register_valid <= 1; // 启用移位寄存器加载
-                                        shift_register_in <= PIC_C; // 输入标签(查一次表)
-                                        data_table_inout_label <= PIC_C; // 读取对应的data table
-                                        ram_delay_counter <= 1; // 重置ram延迟
-                                        state <= STATE_WRITE_DATA_DIRECTLY; // 进入写入数据状态
-                                    end
-                                    else
                                     // 区分是和谁比
                                     // C != A 且 A != 0 ，找出小的，然后其它归并进去
                                     if (PIC_C != PIC_A && PIC_A != 0)
@@ -425,25 +455,13 @@ always @(posedge clk) begin
                                             state <= STATE_WAITING_FOR_DATA_C; // 进入写入数据并合并状态
                                             ram_delay_counter <= 1; // 重置ram延迟
                                         end
-                                    end
-                                    else
-                                    if (PIC_C == PIC_A && PIC_D == 0)
-                                    begin
-                                        // C=A D=0，认为是C
-                                        shift_register_valid <= 1; // 启用移位寄存器加载
-                                        shift_register_in <= PIC_C; // 输入标签(查一次表)
-                                        data_table_inout_label <= PIC_C; // 读取对应的data table
-                                        ram_delay_counter <= 1; // 重置ram延迟
-                                        state <= STATE_WRITE_DATA_DIRECTLY; // 进入写入数据状态
-                                    end
-                                    else if (PIC_C == PIC_D && PIC_A == 0)
-                                    begin
-                                        // C=D A=0，认为是C
-                                        shift_register_valid <= 1; // 启用移位寄存器加载
-                                        shift_register_in <= PIC_C; // 输入标签(查一次表)
-                                        data_table_inout_label <= PIC_C; // 读取对应的data table
-                                        ram_delay_counter <= 1; // 重置ram延迟
-                                        state <= STATE_WRITE_DATA_DIRECTLY; // 进入写入数据状态
+                                        else
+                                        // 理论上此处不可达
+                                        begin
+                                            // 对仿真器报错
+                                            $display("Error: Unexpected case at pixel (%d, %d)", image_x, image_y);
+                                            $stop;
+                                        end
                                     end
                                     else
                                     // 理论上此处不可达
@@ -558,6 +576,7 @@ always @(posedge clk) begin
                 shift_register_valid <= 0; // 禁止移位寄存器加载
                 merger_stack_push <= 0; // 禁止堆栈推入
                 data_table_wr_en <= 0; // 禁用数据表写入
+                label_merger_table_wr_en_1 <= 0;
                 // data_table_wr_en_alt <= 0; // 禁用数据表写入_alt
 
                 if (image_x == IMAGE_WIDTH - 1) // 如果当前像素在行末
@@ -583,17 +602,18 @@ always @(posedge clk) begin
                 end
             end
             STATE_REACH_LINE_END: begin
-                label_merger_table_wr_en_1 <= 0; // 禁止标签合并表写入
                 if (ram_delay_counter > 0)
                 begin
                     ram_delay_counter <= ram_delay_counter - 1; // RAM访问延迟计数器减1
+                    merger_stack_pop <= 0; // 弹出堆栈
+                    label_merger_table_wr_en_1 <= 0; // 启用标签合并表写入
                 end
                 else
                 begin
-                    ram_delay_counter <= 1;
-                    // 到达行末尾，准备执行解链条操作
                     if (!stack_empty) // 如果堆栈不空，继续执行解链条操作
                     begin
+                        // 到达行末尾，准备执行解链条操作
+                        ram_delay_counter <= 2;
                         // 从堆栈顶取出一个合并操作
                         merger_stack_pop <= 1; // 弹出堆栈
                         // 读取dst和src标签
@@ -601,8 +621,7 @@ always @(posedge clk) begin
                         label_merger_table_wr_en_1 <= 1; // 启用标签合并表写入
                         label_merger_table_wr_addr_1 <= merger_stack_src_data_out; // 标签合并表写入地址为src标签
                         label_merger_table_wr_data_1 <= label_merger_table_rd_data_1; // 标签合并表写入数据为dst标签的合并结果
-                        label_merger_table_rd_addr_1 <= merger_stack_dst_data_out; // 设置标签合并表读取地址为dst标签，准备执行解链条操作
-                        state <= STATE_REACH_LINE_END; // 继续合并
+                        state <= STATE_REACH_LINE_END_WAIT_FOR_RAM; // 继续合并
                     end
                     else
                     begin
@@ -611,8 +630,25 @@ always @(posedge clk) begin
                 end
             end
 
+            STATE_REACH_LINE_END_WAIT_FOR_RAM: begin
+                if (ram_delay_counter > 0)
+                begin
+                    ram_delay_counter <= ram_delay_counter - 1; // RAM访问延迟计数器减1
+                    merger_stack_pop <= 0; // 弹出堆栈
+                    label_merger_table_wr_en_1 <= 0; // 启用标签合并表写入
+                end
+                else
+                begin
+                    state <= STATE_REACH_LINE_END; // 继续合并
+                    label_merger_table_rd_addr_1 <= merger_stack_dst_data_out; // 设置标签合并表读取地址为dst标签，准备执行解链条操作
+                    ram_delay_counter <= 1;
+                end
+            end
+
             STATE_LABEL_READ_SHIFT_REGISTER_A: begin
                 // 这里可以添加一些逻辑来处理读取到的B和C标签，例如将它们存储在寄存器中以供后续使用
+                label_merger_table_wr_en_1 <= 0 ;
+                merger_stack_pop <= 0; // 弹出堆栈
                 label_merger_table_rd_addr_1 <= shift_reg_out_last_row_left; // 设置标签合并表读取地址_1为A标签
                 state <= STATE_LABEL_READ_SHIFT_REGISTER_B; // 进入读取A和D标签的状态
             end
@@ -641,15 +677,24 @@ always @(posedge clk) begin
             STATE_IMAGE_FINISH: begin
                 // 图像处理完成
                 // 在端口打印一遍结果，仿真器可以捕获这些输出
+                scan_finish <= 1; // 扫描完成
                 if (data_table_inout_label < (1<<LABEL_WIDTH )-1)
                 begin
-                    if (area > 50)
-                    begin   
+                    if (area > 0)
+                    begin
+                        out_new <= 1;
                         area_out <= area; // 输出面积
-                        x_min_out <= x_min + (x_max - x_min) /2 ; // 输出x_min
-                        // x_max_out <= 0; // 输出x_max
-                        y_min_out <= y_min + (y_max - y_min) /2 ; // 输出y_min
-                        // y_max_out <= 0; // 输出y_max
+                        x_out <= x_min + (x_max - x_min) /2 ; // 输出x_min
+                        y_out <= y_min + (y_max - y_min) /2 ; // 输出y_min
+                        x_min_out <= x_min; // 输出x_min
+                        x_max_out <= x_max; // 输出x_max
+                        y_min_out <= y_min; // 输出y_min
+                        y_max_out <= y_max; // 输出y_max
+
+                    end
+                    else
+                    begin
+                        out_new <= 0;
                     end
                     data_table_inout_label <= data_table_inout_label + 1; // 输出下一个标签的数据
                 end
