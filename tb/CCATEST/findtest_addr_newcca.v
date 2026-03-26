@@ -82,7 +82,7 @@ wire out_new;
 scaMain #(
     .IMAGE_WIDTH(320),
     .IMAGE_HEIGHT(240),
-    .LABEL_WIDTH(8),
+    .LABEL_WIDTH(10),
     .STACK_POINTER_WIDTH(8)
 ) scaMain_inst (
     .clk(clk),

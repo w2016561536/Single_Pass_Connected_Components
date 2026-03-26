@@ -283,11 +283,11 @@ always @(posedge clk) begin
                         // 如果B != 0，则直接认为是B
                         if (shift_reg_out_last_row_mid != 0)
                         begin
-                            if (PIC_B != PIC_C && PIC_C !=0)
-                            begin
-                                $display("error b!=c!!");
-                                $stop;
-                            end
+                            // if (PIC_B != PIC_C && PIC_C !=0)
+                            // begin
+                            //     $display("error b!=c!!");
+                            //     $stop;
+                            // end
                             shift_register_valid <= 1; // 启用移位寄存器加载
                             shift_register_in <= PIC_B; // 输入标签(查一次表)
                             // 更新数据表中的面积和边界框信息
@@ -700,6 +700,15 @@ always @(posedge clk) begin
                 end
             end
         endcase
+    end
+end
+
+always @(posedge clk)
+begin
+    if (image_x == 126 && image_y == 202 && shift_register_valid)
+    begin
+        $display("Debug: At pixel (126, 202), shift register input = %d", shift_register_in);
+        $stop;
     end
 end
 

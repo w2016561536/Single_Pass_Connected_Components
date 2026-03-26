@@ -84,7 +84,7 @@ def connected_components_8(binary):
 
 
 def main():
-    image_path = "received_image_bin_yellow.bmp"  # 改成你的本地图片路径
+    image_path = "received_image_bin_red.bmp"  # 改成你的本地图片路径
 
     binary = load_binary_image(image_path, threshold=127)
     components = connected_components_8(binary)
@@ -95,7 +95,7 @@ def main():
     print(f"总连通域数量（过滤后 area >= 100）: {len(filtered_components)}")
     for i, comp in enumerate(filtered_components, 1):
         print(
-            f"Component {i}: "
+            f"Component {i-1}: "
             f"area={comp['area']}, "
             f"xc={(comp['xmin'] + comp['xmax']) // 2}, "
             f"yc={(comp['ymin'] + comp['ymax']) // 2}, "

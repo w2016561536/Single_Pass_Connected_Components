@@ -22,6 +22,9 @@ add wave -noupdate -radix unsigned /test_c/scaMain_inst/shift_register_in
 add wave -noupdate /test_c/scaMain_inst/shift_register_valid
 add wave -noupdate -radix unsigned /test_c/scaMain_inst/label_merger_table_rd_addr_1
 add wave -noupdate -radix unsigned /test_c/scaMain_inst/label_merger_table_rd_data_1
+add wave -noupdate -radix unsigned /test_c/scaMain_inst/label_merger_table_wr_addr_1
+add wave -noupdate -radix unsigned /test_c/scaMain_inst/label_merger_table_wr_data_1
+add wave -noupdate -radix unsigned /test_c/scaMain_inst/label_merger_table_wr_en_1
 add wave -noupdate -radix unsigned /test_c/scaMain_inst/PIC_A
 add wave -noupdate -radix unsigned /test_c/scaMain_inst/PIC_B
 add wave -noupdate -radix unsigned /test_c/scaMain_inst/PIC_C
@@ -45,7 +48,7 @@ add wave -noupdate -radix unsigned /test_c/scaMain_inst/area_out
 add wave -noupdate -radix unsigned /test_c/scaMain_inst/x_out
 add wave -noupdate -radix unsigned /test_c/scaMain_inst/y_out
 TreeUpdate [SetDefaultTree]
-WaveRestoreCursors {{Cursor 1} {15891605907 ps} 0}
+WaveRestoreCursors {{Cursor 1} {13588576074 ps} 0}
 quietly wave cursor active 1
 configure wave -namecolwidth 323
 configure wave -valuecolwidth 100
@@ -61,4 +64,4 @@ configure wave -griddelta 40
 configure wave -timeline 0
 configure wave -timelineunits ps
 update
-WaveRestoreZoom {15891546642 ps} {15891951842 ps}
+WaveRestoreZoom {13588419712 ps} {13588793744 ps}
